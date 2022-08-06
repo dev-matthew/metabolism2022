@@ -1,0 +1,27 @@
+{
+  "name": "metabolism2022",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "npm run deploy && node main.js",
+    "deploy": "node deploy-commands.js",
+    "reset": "node reset-commands.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dev-matthew/metabolism2022.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dev-matthew/metabolism2022/issues"
+  },
+  "homepage": "https://github.com/dev-matthew/metabolism2022#readme",
+  "dependencies": {
+    "@discordjs/rest": "^1.0.1",
+    "discord.js": "^14.1.2",
+    "dotenv": "^16.0.1"
+  }
+}
