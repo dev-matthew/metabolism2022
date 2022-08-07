@@ -85,7 +85,7 @@ client.on("interactionCreate", async interaction => {
         const { commandName } = interaction;
         switch(commandName) {
             case "ping":
-                await interaction.editReply("Online!");
+                await interaction.reply("Online!");
                 break;
             case "Capture as NFT":
                 waitingRequests[interaction.user.id] = {
