@@ -1,24 +1,74 @@
-require("dotenv").config();
-
-const { Client, GatewayIntentBits, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, InteractionType } = require("discord.js");
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
-
-var waitingRequests = {}
-
 console.log("LOADING...");
-const { TOKEN, NFT_STORAGE_KEY } = process.env;
+require("dotenv").config();
+const { TOKEN, WEB3_KEY, NFT_PORT_KEY } = process.env;
+
+const fs = require("fs");
+const axios = require("axios").default;
+const { Client, GatewayIntentBits, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, InteractionType } = require("discord.js");
+
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 client.login(TOKEN).catch(console.error);
+
+const { Web3Storage, File, Blob } = require("web3.storage");
+const Web3Client = new Web3Storage({ token: WEB3_KEY });
+
+var waitingRequests = {};
 
 client.on("ready", function() {
     console.log("ONLINE");
 });
 
-async function createImage(guild, channel, message) {
+async function createImage(guild, channel, message, interaction) {
+    await interaction.reply({content: "Generating image..."});
 
+    let channel_obj = client.channels.cache.get(channel);
+    let message_obj = channel_obj.messages.cache.get(message);
+
+    const { createdTimestamp, content, author } = message_obj;
+    let authorID = author.id;
+    const authorAvatar = `https://cdn.discordapp.com/avatars/${authorID}/${author.avatar}`;
+    const d = new Date(createdTimestamp);
+    
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="400"><clipPath id="clipCircle"><circle r="64" cx="104" cy="104"/></clipPath><rect width="1920" height="600" style="fill:rgba(54,57,63,1)"></rect><image x="40" y="40" href="${authorAvatar}" clip-path="url(#clipCircle)"></image><style>.name {font-size: 52px;fill: white;font-family: "Arial";}.text{font-size:52px;fill:rgba(255,255,255,0.7);font-family:"Arial";}.time{font-size:42px;fill:rgba(255,255,255,0.7);font-family:"Arial";}</style>`;
+    svg += `<text x="210" y="90" class="name">${author.username.substring(0, Math.min(author.username.length + 1, 31))}</text>`;
+    svg += `<text x="${Math.min(author.username.length, 30) * 45 + 210}" y="90" class="time">${d.toLocaleString("default", {month: "long"})} ${d.getDate()}, ${d.getFullYear()} at ${d.getHours()}:${d.getMinutes()}</text>`;
+    svg += `<text x="210" y="170" class="text">${content}</text>`;
+    svg += `<metadata>{timestamp: ${createdTimestamp}, user_id: ${authorID}, message_id: ${message}, channel_id: ${channel}, guild_id: ${guild}}</metadata>`;
+    svg += "</svg>";
+
+    return {svg, content, authorID};
 }
 
-async function mintNFT(address, guild, channel, message, image, interaction) {
-    
+async function mintNFT(address, image, content, interaction, guild, channel, message, author) {
+    await interaction.editReply("Uploading image to web3.storage...");
+
+    let blob = new Blob([image], {type: "image/svg+xml"});
+    let file = new File([blob], "nft.svg");
+    const rootCid = await Web3Client.put([file]);
+    let ipfs_url = `https://ipfs.io/ipfs/${rootCid}/nft.svg`;
+    console.log(ipfs_url);
+
+    await interaction.editReply("Minting NFT...");
+
+    axios.post("https://api.nftport.xyz/v0/mints/easy/urls", {
+        chain: "polygon",
+        name: "0xScribe Message Log",
+        description: `AuthorID: ${author}, MessageID: ${message}, ChannelID: ${channel}, GuildID: ${guild}, Content: ${content}`,
+        file_url: ipfs_url,
+        mint_to_address: address
+    }, {
+        headers: {
+            "Authorization": NFT_PORT_KEY,
+            "Content-Type": "application/json"
+        }
+    }).then(function(response) {
+
+        console.log(response);
+        interaction.editReply(`Minted [message](https://discord.com/channels/${guild}/${channel}/${message}) as an [NFT](https://polygonscan.com/tx/${response.data.transaction_hash}) to \`${address}\`!`);
+
+    }).catch(function(error) {
+        console.log(error);
+    });
 }
 
 client.on("interactionCreate", async interaction => {
@@ -30,12 +80,10 @@ client.on("interactionCreate", async interaction => {
         const user = interaction.user.id;
         const { guild, channel, message} = waitingRequests[user];
 
-        await interaction.reply({content: `Minting [message](https://discord.com/channels/${guild}/${channel}/${message}) as an NFT to \`${address}\`...`});
-        let image = await createImage(guild, channel, message);
-        await mintNFT(address, guild, channel, message, image, interaction);
+        let {image, content, authorID} = await createImage(guild, channel, message, interaction);
+        await mintNFT(address, image, content, interaction, guild, channel, message, authorID);
 
     } else {
-
         const { commandName } = interaction;
         switch(commandName) {
             case "ping":
@@ -56,10 +104,5 @@ client.on("interactionCreate", async interaction => {
                 await interaction.showModal(modal);
                 break;
         }
-        
     }
-});
-
-client.on("messageCreate", (message) => {
-    //console.log(message);
 });
