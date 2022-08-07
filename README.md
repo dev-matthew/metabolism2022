@@ -21,5 +21,6 @@ Another use case of 0xScribe is to save moments in chat as collectibles that can
 
 ### Other
 - Discord.js (Provides access to server messages and commands)
+- Heroku (Hosting the Discord bot on the cloud)
 - NFTPort (Minting of NFTs)
 - Covalent (Viewing of past NFT memories in place of Zora)
