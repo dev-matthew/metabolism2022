@@ -14,14 +14,6 @@ const Web3Client = new Web3Storage({ token: WEB3_KEY });
 
 var waitingRequests = {};
 
-async function fetchNFTs(address) {
-    return await zdk.collections({
-        where: {
-            collectionAddresses: [address]
-        }
-    });
-}
-
 client.on("ready", async function() {
     console.log("ONLINE");
 });
@@ -44,6 +36,7 @@ async function createImage(guild, channel, message, interaction) {
     svg += `<metadata>{timestamp: ${createdTimestamp}, user_id: ${authorID}, message_id: ${message}, channel_id: ${channel}, guild_id: ${guild}}</metadata>`;
     svg += "</svg>";
 
+    console.log(svg);
     return {svg, content, authorID};
 }
 
@@ -52,6 +45,7 @@ async function mintNFT(address, image, content, interaction, guild, channel, mes
 
     let blob = new Blob([image], {type: "image/svg+xml"});
     let file = new File([blob], "nft.svg");
+    console.log(file);
     const rootCid = await Web3Client.put([file]);
     let ipfs_url = `https://ipfs.io/ipfs/${rootCid}/nft.svg`;
     console.log(ipfs_url);
