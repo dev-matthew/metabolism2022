@@ -1,6 +1,6 @@
 console.log("LOADING...");
 require("dotenv").config();
-const { TOKEN, WEB3_KEY, NFT_PORT_KEY } = process.env;
+const { TOKEN, WEB3_KEY, NFT_PORT_KEY, COVALENT_KEY } = process.env;
 
 const fs = require("fs");
 const axios = require("axios").default;
@@ -14,7 +14,15 @@ const Web3Client = new Web3Storage({ token: WEB3_KEY });
 
 var waitingRequests = {};
 
-client.on("ready", function() {
+async function fetchNFTs(address) {
+    return await zdk.collections({
+        where: {
+            collectionAddresses: [address]
+        }
+    });
+}
+
+client.on("ready", async function() {
     console.log("ONLINE");
 });
 
@@ -62,17 +70,13 @@ async function mintNFT(address, image, content, interaction, guild, channel, mes
             "Content-Type": "application/json"
         }
     }).then(function(response) {
-
-        console.log(response);
         interaction.editReply(`Minted [message](https://discord.com/channels/${guild}/${channel}/${message}) as an [NFT](https://polygonscan.com/tx/${response.data.transaction_hash}) to \`${address}\`!`);
-
     }).catch(function(error) {
         console.log(error);
     });
 }
 
 client.on("interactionCreate", async interaction => {
-    console.log(interaction);
 
     if (interaction.type == InteractionType.ModalSubmit) {
 
@@ -102,6 +106,33 @@ client.on("interactionCreate", async interaction => {
                 modal.addComponents(row);
 
                 await interaction.showModal(modal);
+                break;
+            case "memories":
+                await interaction.deferReply();
+
+                const address = interaction.options.getString("address");
+                axios.get(`https://api.covalenthq.com/v1/137/address/${address}/balances_v2/?quote-currency=USD&format=JSON&nft=true&no-nft-fetch=false&key=${COVALENT_KEY}`)
+                .then(function(response) {
+
+                    output = "";
+                    let allItems = response.data.data.items;
+                    for (let i = 0; i < allItems.length; i += 1) {
+                        let nft = allItems[i];
+                        if (nft.type === "nft" && nft.nft_data) {
+                            for (let k = 0; k < nft.nft_data.length; k += 1) {
+                                if (nft.nft_data[k].external_data && nft.nft_data[k].external_data.name && nft.nft_data[k].external_data.name == "0xScribe Message Log") {
+                                    let description = nft.nft_data[k].external_data.description.replaceAll(", ", " ").split(" ");
+                                    output += `[Message](https://discord.com/channels/${description[5]}/${description[3]}) from <@${description[1]}>: "${description.slice(9).join(" ")}"\n`;
+                                }
+                            }
+                        }
+                    }
+
+                    interaction.editReply({content: output});
+
+                }).catch(function(error) {
+                    console.log(error);
+                });
                 break;
         }
     }

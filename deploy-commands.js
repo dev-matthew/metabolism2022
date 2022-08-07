@@ -6,6 +6,8 @@ const { TOKEN, CLIENT_ID } = process.env;
 
 const commands = [
     new SlashCommandBuilder().setName("ping").setDescription("Verify the bot is online"),
+    new SlashCommandBuilder().setName("memories").setDescription("View past chat captures")
+        .addStringOption(option => option.setName("address").setDescription("Polygon address to query").setRequired(true)),
     new ContextMenuCommandBuilder().setName("Capture as NFT").setType(ApplicationCommandType.Message)
 ].map(command => command.toJSON());
 
